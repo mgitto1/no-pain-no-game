@@ -1,0 +1,16 @@
+# Node
+node_modules/
+dist/
+.env
+.DS_Store
+*.log
+
+# macOS
+*.DS_Store
+
+# VSCode
+.vscode/
+
+# Python cache
+__pycache__/
+*.pyc
