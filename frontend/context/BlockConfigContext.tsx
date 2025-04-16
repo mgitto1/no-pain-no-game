@@ -38,9 +38,7 @@ export const BlockConfigProvider: React.FC<{ children: React.ReactNode }> = ({
       setBlockConfig({
         apps: Array.isArray(config.apps) ? config.apps : [],
         sites: Array.isArray(config.sites) ? config.sites : [],
-        availableSites: Array.isArray(config?.availableSites)
-          ? config.availableSites
-          : [],
+        availableSites: config?.availableSites ?? [],
       });
     }
   }, []);

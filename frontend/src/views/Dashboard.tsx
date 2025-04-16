@@ -34,6 +34,7 @@ export const Dashboard = ({
   const { apps: selectedApps, sites: selectedSites } = blockConfig;
   const [currentWorkoutMinutes, setCurrentWorkoutMinutes] = useState<number>(0);
   const [targetWorkoutMinutes, setTargetWorkoutMinutes] = useState<number>(30);
+  const [restrictionsEnabled, setRestrictionsEnabled] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showList, setShowList] = useState(false);
 
@@ -46,6 +47,17 @@ export const Dashboard = ({
     : 'no websites';
 
   const summaryText = `Blocking ${appsSummary} and ${sitesSummary}`;
+
+  useEffect(() => {
+    const fetchToggle = async () => {
+      const res = await fetch(
+        'https://nopainnogameapp-default-rtdb.firebaseio.com/restrictionsEnabled.json'
+      );
+      const value = await res.json();
+      setRestrictionsEnabled(Boolean(value));
+    };
+    fetchToggle();
+  }, []);
 
   useEffect(() => {
     const fetchTarget = async () => {
@@ -70,7 +82,53 @@ export const Dashboard = ({
     return () => clearInterval(interval);
   }, []);
 
-  const progressPercent = (currentWorkoutMinutes / targetWorkoutMinutes) * 100;
+  const progressPercent =
+    (currentWorkoutMinutes / targetWorkoutMinutes) * 100 || 0;
+
+  const handleToggleRestrictions = async () => {
+    const newValue = !restrictionsEnabled;
+
+    // If trying to enable restrictions but none are set up
+    if (newValue && selectedApps.length === 0 && selectedSites.length === 0) {
+      if (
+        window.confirm(
+          'You need to set up restrictions first. Would you like to go to the Restrictions page?'
+        )
+      ) {
+        setCurrentPage('Restrictions');
+      }
+      return;
+    }
+
+    // If trying to disable restrictions
+    if (!newValue) {
+      if (
+        !window.confirm(
+          'Are you sure you want to disable restrictions? This will unblock all apps and websites.'
+        )
+      ) {
+        return;
+      }
+
+      // Clear all restrictions
+      const config = await window.electron.readBlockConfig();
+      await window.electron.writeBlockConfig({
+        ...config,
+        apps: [],
+        sites: [],
+      });
+    }
+
+    setRestrictionsEnabled(newValue);
+    await fetch(
+      'https://nopainnogameapp-default-rtdb.firebaseio.com/restrictionsEnabled.json',
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newValue),
+      }
+    );
+  };
 
   return (
     <div className="font-sans h-full">
@@ -95,25 +153,19 @@ export const Dashboard = ({
                 </>
               )}
             </div>
-            {isLoading ? (
-              <div className="w-full bg-gray-700 h-4 rounded overflow-hidden">
-                <div className="h-4 bg-gray-500 animate-pulse w-1/2" />
-              </div>
-            ) : (
-              <div className="w-full mt-4 bg-gray-700 h-4 rounded overflow-hidden">
-                <div
-                  className={`h-4 transition-all duration-500 ${
-                    progressPercent >= 100
-                      ? 'bg-green-500'
-                      : progressPercent >= 50
-                      ? 'bg-yellow-400'
-                      : 'bg-red-500'
-                  }`}
-                  style={{ width: `${Math.min(progressPercent, 100)}%` }}
-                />
-              </div>
-            )}
 
+            <div className="w-full mt-4 bg-gray-700 h-4 rounded overflow-hidden">
+              <div
+                className={`h-4 transition-all duration-500 ${
+                  progressPercent >= 100
+                    ? 'bg-green-500'
+                    : progressPercent >= 50
+                    ? 'bg-yellow-400'
+                    : 'bg-red-500'
+                }`}
+                style={{ width: `${Math.min(progressPercent, 100)}%` }}
+              />
+            </div>
             {currentWorkoutMinutes >= targetWorkoutMinutes ? (
               <p className="mt-4 text-green-500 font-semibold">
                 💪 Workout goal achieved!
@@ -133,7 +185,39 @@ export const Dashboard = ({
               Edit Restrictions →
             </button>
           </div>
-          <p className="text-gray-300">{summaryText}</p>
+          <div className="flex items-center gap-2 mt-4">
+            <label htmlFor="toggle" className="text-sm text-gray-300">
+              Restrictions:
+            </label>
+            <button
+              id="toggle"
+              className={`px-3 py-1 rounded text-sm font-medium transition ${
+                restrictionsEnabled
+                  ? 'bg-green-600 text-white'
+                  : 'bg-gray-600 text-gray-300'
+              }`}
+              onClick={handleToggleRestrictions}
+            >
+              {restrictionsEnabled ? 'ON' : 'OFF'}
+            </button>
+          </div>
+          {restrictionsEnabled ? (
+            currentWorkoutMinutes >= targetWorkoutMinutes ? (
+              <p className="text-green-500 text-sm font-medium">
+                ✅ Restrictions ON – Workout completed, nothing blocked.
+              </p>
+            ) : (
+              <p className="text-red-500 text-sm font-medium">
+                🔒 Restrictions ON – Blocking apps & websites until workout is
+                complete.
+              </p>
+            )
+          ) : (
+            <p className="text-gray-400 text-sm font-medium">
+              ⛔ Restrictions OFF – All apps & sites are accessible.
+            </p>
+          )}
+          <p className="text-gray-300 mt-4">{summaryText}</p>
 
           {selectedApps.length + selectedSites.length > 0 && (
             <div className="mt-2">

@@ -1,5 +1,6 @@
 import React from 'react';
 import { usePoller } from '../../context';
+import { formatDistanceToNow } from 'date-fns';
 
 export const NavBar = ({
   currentPage,
@@ -9,7 +10,7 @@ export const NavBar = ({
   setCurrentPage: (page: string) => void;
 }) => {
   const navItems = ['Dashboard', 'Restrictions', 'Settings'];
-  const { pollerRunning } = usePoller();
+  const { pollerRunning, lastSyncedAt } = usePoller();
 
   return (
     <div className="bg-[#1e1e1e] w-48 h-full p-4 text-white flex flex-col justify-between border-r border-gray-700">
@@ -27,8 +28,13 @@ export const NavBar = ({
           </button>
         ))}
       </div>
-      <div>
-        <p className="text-xs italic mb-4">
+      <div className="flex flex-col gap-2">
+        {lastSyncedAt && (
+          <p className="text-xs">
+            Last synced {formatDistanceToNow(lastSyncedAt, { addSuffix: true })}
+          </p>
+        )}
+        <p className="text-xs italic text-gray-400">
           Poller status:
           <span className={pollerRunning ? 'text-green-500' : 'text-red-500'}>
             {pollerRunning ? ' Active' : ' Not Running'}
